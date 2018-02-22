@@ -125,7 +125,7 @@
 		};
 
 		ehci@c0030000 {
-			//samsung,vbus-gpio = <&gpio_a 16 0>;
+			samsung,vbus-gpio = <&gpio_a 16 0>;
 			status = "okay";
 			port@0 {
 				status = "okay";
@@ -151,7 +151,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&gmac_pins>;
 
-			status = "disabled";
+			status = "okay";
 			#address-cells = <0x1>;
 			#size-cells = <0x0>;
 
@@ -215,14 +215,14 @@
 			};
 
 			tsp_irq: tsp-irq {
-				nexell,pins = "gpioa-12";
+				nexell,pins = "gpiob-8";
 				nexell,pin-function = <0>;
 				nexell,pin-pull = <1>;
 				nexell,pin-strength = <0>;
 			};
 
 			tsp_reset: tsp-reset {
-				nexell,pins = "gpioa-13";
+				nexell,pins = "gpioc-25";
 				nexell,pin-function = <0>;
 				nexell,pin-pull = <1>;
 				nexell,pin-strength = <0>;
@@ -259,19 +259,6 @@
 		i2c_0:i2c@c00a4000 {
 			samsung,i2c-max-bus-freq = <400000>;
 			status = "okay";
-			#address-cells = <1>;
-			#size-cells = <0>;
-        		rtc@68 {
-                		compatible = "maxim,ds1337";
-                		reg = <0x68>;
-                		interrupt-parent = <&alive_0>;
-                		interrupts = <0x2 IRQ_TYPE_EDGE_FALLING>;
-                		/* If it's first boot, reset to 4/29/2016(Fri) UTC */
-                		init_time,year = <116>;
-                		init_time,mon = <3>;
-                		init_time,mday = <29>;
-                		init_time,wday = <5>;
-        		};
 		};
 
 		mipi_csi:mipi_csi@c00d0000 {
@@ -285,7 +272,7 @@
 			interface_type = <NX_CAPTURE_INTERFACE_MIPI_CSI>;
 			gpios = <&gpio_a 17 0 &gpio_a 3 0 &gpio_a 6 0>;
 			data_order = <NX_VIN_Y0CBY1CR>;
-			status = "disable";
+			status = "okay";
 			sensor {
 				type = <NX_CAPTURE_SENSOR_I2C>;
 				i2c_name = "S5K4ECGA";
@@ -332,10 +319,9 @@
 	};
 
 	panel: panel-simple {
-		compatible = "nhd,nhd-50-800480tf-atxl";
+		compatible = "dongguan,gst7d0038";
 		backlight = <&backlight>;
 		status = "okay";
-		enable-gpios = <&gpio_a 16 0>;
 
 		port {
 			lvds_panel: endpoint {
@@ -357,8 +343,6 @@
 			compatible = "realtek,rt5658";
 			reg = <0x1a>;
 		};
-
-		status = "disabled";
 	};
 
 	i2c_gpio7:i2c@7 {
@@ -435,6 +419,17 @@
 		#size-cells = <0>;
 		i2c-gpio,delay-us = <100>;
 
+		rtc@68 {
+			compatible = "maxim,ds1337";
+			reg = <0x68>;
+			interrupt-parent = <&alive_0>;
+			interrupts = <0x2 IRQ_TYPE_EDGE_FALLING>;
+			/* If it's first boot, reset to 4/29/2016(Fri) UTC */
+			init_time,year = <116>;
+			init_time,mon = <3>;
+			init_time,mday = <29>;
+			init_time,wday = <5>;
+		};
 	};
 
 	gpio_key: gpio_keys {
@@ -457,34 +452,6 @@
 			linux,code = <KEY_WAKEUP>;
 			gpio-key,wakeup;
 		};
-
-		prev {
-			label = "Footswitch Previous";
-			gpios = <&gpio_a 3 1>;
-			linux,code = <BTN_0>;
-			gpio-key,wakeup;
-		};
-
-		next {
-                        label = "Footswitch Next";
-                        gpios = <&gpio_a 4 1>;
-                        linux,code = <BTN_1>;
-                        gpio-key,wakeup;
-		};
-		
-		tap {
-                        label = "Footswitch Tap";
-                        gpios = <&gpio_a 5 1>;
-                        linux,code = <BTN_2>;
-                        gpio-key,wakeup;
-		};
-	
-		exttap {
-                        label = "External Tap";
-                        gpios = <&gpio_a 6 1>;
-                        linux,code = <BTN_3>;
-                        gpio-key,wakeup;
-		};
 	};
 
 	spdif_out: spdif-out {
@@ -504,7 +471,7 @@
 		i2c-gpio,delay-us = <1>;	/* ~100kHz */
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "disabled";
+		status = "okay";
 
 		cw2015@62 {
 			compatible = "cw201x";
@@ -725,7 +692,7 @@
 	#size-cells = <0>;
 	status = "okay";
 
-/*	touchscreen@4a {
+	touchscreen@4a {
 		compatible = "atmel,maxtouch";
 		reg = <0x4a>;
 		interrupt-parent = <&gpio_b>;
@@ -743,16 +710,6 @@
 		interrupts = <8 IRQ_TYPE_EDGE_FALLING>;
 		reset-gpio = <&gpio_c 25 1>;
 		int-gpio = <&gpio_b 8 0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&tsp_irq &tsp_reset>;
-	};*/
-	touchscreen@38 {
-		compatible = "edt,edt-ft5306";
-		reg = <0x38>;
-		interrupt-parent = <&gpio_a>;
-		interrupts = <12 IRQ_TYPE_EDGE_FALLING>;
-		reset-gpio = <&gpio_a 13 1>;
-		int-gpio = <&gpio_a 12 1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&tsp_irq &tsp_reset>;
 	};
@@ -785,7 +742,7 @@
 &dp_drm_mipi {
 	hs_bitrate = <960>;
 	lp_bitrate = <100>;
-	status = "disabled";
+	status = "ok";
 
 	panel@0 {
 		compatible = "samsung,s6e8fa0";
@@ -827,12 +784,12 @@
 &dp_drm_hdmi {
 	ddc-i2c-bus = <&i2c_gpio7>;
 	enable-gpios = <&gpio_a 21 0>;
-	status = "disabled";
+	status = "ok";
 	q_range = <0>;
 };
 
 &dp_drm_lvds {
-	status = "okay";
+	status = "ok";
 
 	remote-endpoint = <&lvds_panel>;
 
@@ -841,7 +798,7 @@
 		clk_div_lv0 = <16>;
 		clk_src_lv1 = <7>;
 		clk_div_lv1 = <1>;
-		out_format = <1>;
+		out_format = <3>;
 	};
 };
 

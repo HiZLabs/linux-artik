@@ -369,46 +369,6 @@ static void panel_simple_shutdown(struct device *dev)
 	panel_simple_disable(&panel->base);
 }
 
-static const struct display_timing nhd_50_800480tf_atxl_timing = {
-        .pixelclock = { 20000000, 30000000, 50000000 },
-        .hactive = { 800, 800, 800 },
-        .hfront_porch = { 40, 40, 40 },
-        .hback_porch = { 88, 88, 88 },
-        .hsync_len = { 1, 48, 48 },
-        .vactive = { 480, 480, 480 },
-        .vfront_porch = { 13, 13, 13 },
-        .vback_porch = { 32, 32, 32 },
-        .vsync_len = { 3, 3, 3 },
-        .flags = DISPLAY_FLAGS_PIXDATA_NEGEDGE | DISPLAY_FLAGS_DE_HIGH,
-};
-
-static const struct drm_display_mode nhd_50_800480tf_atxl_mode = {
-        .clock = 29399,
-        .hdisplay = 800,
-        .hsync_start = 800 + 40,
-        .hsync_end = 800 + 40 + 88,
-        .htotal = 800 + 40 + 88 + 40,
-        .vdisplay = 480,
-        .vsync_start = 480 + 13,
-        .vsync_end = 480 + 13 + 32,
-        .vtotal = 480 + 13 + 32 + 3,
-        .vrefresh = 60,
-        //.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
-};
-
-static const struct panel_desc nhd_50_800480tf_atxl = {
-        .timings = &nhd_50_800480tf_atxl_timing,
-        .num_timings = 1,
-        //.modes = & nhd_50_800480tf_atxl_mode,
-	//.num_modes = 1,
-        .bpc = 8,
-        .size = {
-                .width = 108,
-                .height = 65,
-        },
-        .bus_format = MEDIA_BUS_FMT_RGB888_1X24,
-};
-
 static const struct drm_display_mode ampire_am800480r3tmqwa1h_mode = {
 	.clock = 33333,
 	.hdisplay = 800,
@@ -1237,9 +1197,6 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "nec,nl4827hc19-05b",
 		.data = &nec_nl4827hc19_05b,
-	}, {
-		.compatible = "nhd,nhd-50-800480tf-atxl",
-		.data = &nhd_50_800480tf_atxl,
 	}, {
 		.compatible = "okaya,rs800480t-7x0gp",
 		.data = &okaya_rs800480t_7x0gp,
