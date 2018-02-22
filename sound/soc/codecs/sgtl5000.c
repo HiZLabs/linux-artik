@@ -887,7 +887,7 @@ static int ldo_regulator_register(struct snd_soc_codec *codec,
 	if (IS_ERR(ldo->dev)) {
 		int ret = PTR_ERR(ldo->dev);
 
-		dev_err(codec->dev, "failed to register regulator %s\n", ldo->desc.name);
+		dev_err(codec->dev, "failed to register regulator\n");
 		kfree(ldo->desc.name);
 		kfree(ldo);
 
@@ -1286,19 +1286,13 @@ static int sgtl5000_enable_regulators(struct snd_soc_codec *codec)
 	for (i = 0; i < ARRAY_SIZE(sgtl5000->supplies); i++)
 		sgtl5000->supplies[i].supply = supply_names[i];
 
-	dev_info(codec->dev, "Revision %d detected\n", sgtl5000->revision);
 	/* External VDDD only works before revision 0x11 */
-	if (true) { //sgtl5000->revision < 0x11) {
+	if (sgtl5000->revision < 0x11) {
 		vddd = regulator_get_optional(codec->dev, "VDDD");
 		if (IS_ERR(vddd)) {
 			/* See if it's just not registered yet */
-			if (PTR_ERR(vddd) == -EPROBE_DEFER) {
-				dev_err(codec->dev, "VDDD regulator not found, deferring\n");
+			if (PTR_ERR(vddd) == -EPROBE_DEFER)
 				return -EPROBE_DEFER;
-			}
-
-			dev_err(codec->dev, "VDDD regulator specified but not found\n");
-			return -ENOENT;
 		} else {
 			external_vddd = 1;
 			regulator_put(vddd);
@@ -1341,19 +1335,14 @@ static int sgtl5000_probe(struct snd_soc_codec *codec)
 	int ret;
 	struct sgtl5000_priv *sgtl5000 = snd_soc_codec_get_drvdata(codec);
 
-	dev_info(codec->dev, "start probe\n");
 	ret = sgtl5000_enable_regulators(codec);
-	if (ret) {
-		dev_err(codec->dev, "Failed to enable regulators: %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	/* power up sgtl5000 */
 	ret = sgtl5000_set_power_regs(codec);
-	if (ret) {
-		dev_err(codec->dev, "Failed to set power regs: %d\n", ret);
+	if (ret)
 		goto err;
-	}
 
 	/* enable small pop, introduce 400ms delay in turning off */
 	snd_soc_update_bits(codec, SGTL5000_CHIP_REF_CTRL,
@@ -1396,7 +1385,7 @@ static int sgtl5000_probe(struct snd_soc_codec *codec)
 	 * Enable DAP in kcontrol and dapm.
 	 */
 	snd_soc_write(codec, SGTL5000_DAP_CTRL, 0);
-	dev_info(codec->dev, "probe success\n");
+
 	return 0;
 
 err:
@@ -1406,7 +1395,6 @@ err:
 				sgtl5000->supplies);
 	ldo_regulator_remove(codec);
 
-	dev_err(codec->dev, "probe error: %d\n", ret);
 	return ret;
 }
 
@@ -1483,12 +1471,9 @@ static int sgtl5000_i2c_probe(struct i2c_client *client,
 	struct device_node *np = client->dev.of_node;
 	u32 value;
 
-	dev_info(&client->dev, "Starting i2c probe\n");
 	sgtl5000 = devm_kzalloc(&client->dev, sizeof(*sgtl5000), GFP_KERNEL);
-	if (!sgtl5000) {
-		dev_err(&client->dev, "Failed to allocate memory\n");
+	if (!sgtl5000)
 		return -ENOMEM;
-	}
 
 	sgtl5000->regmap = devm_regmap_init_i2c(client, &sgtl5000_regmap);
 	if (IS_ERR(sgtl5000->regmap)) {
@@ -1508,20 +1493,16 @@ static int sgtl5000_i2c_probe(struct i2c_client *client,
 	}
 
 	ret = clk_prepare_enable(sgtl5000->mclk);
-	if (ret) {
-		dev_err(&client->dev, "Failed to enable mclk: %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	/* Need 8 clocks before I2C accesses */
 	udelay(1);
 
 	/* read chip information */
 	ret = regmap_read(sgtl5000->regmap, SGTL5000_CHIP_ID, &reg);
-	if (ret) {
-		dev_err(&client->dev, "Failed to read chip info: %d\n", ret);
+	if (ret)
 		goto disable_clk;
-	}
 
 	if (((reg & SGTL5000_PARTID_MASK) >> SGTL5000_PARTID_SHIFT) !=
 	    SGTL5000_PARTID_PART_ID) {
@@ -1580,23 +1561,17 @@ static int sgtl5000_i2c_probe(struct i2c_client *client,
 
 	/* Ensure sgtl5000 will start with sane register values */
 	ret = sgtl5000_fill_defaults(sgtl5000);
-	if (ret) {
-		dev_err(&client->dev, "Failed to fill defaults: %d\n", ret);
+	if (ret)
 		goto disable_clk;
-	}
 
 	ret = snd_soc_register_codec(&client->dev,
 			&sgtl5000_driver, &sgtl5000_dai, 1);
-	if (ret) {
-		dev_err(&client->dev, "Failed to register codec: %d\n", ret);
+	if (ret)
 		goto disable_clk;
-	}
 
-	dev_info(&client->dev, "i2c probe succeeded\n");
 	return 0;
 
 disable_clk:
-	dev_err(&client->dev, "i2c probe failed\n");
 	clk_disable_unprepare(sgtl5000->mclk);
 	return ret;
 }

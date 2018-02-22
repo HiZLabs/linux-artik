@@ -210,28 +210,21 @@
 			touchpanel_irq: touchpanel-irq {
 				nexell,pins = "gpiob-22";
 				nexell,pin-function = <1>;
-				nexell,pin-pull = <2>;
+				nexell,pin-pull = <1>;
 				nexell,pin-strength = <0>;
 			};
 
 			tsp_irq: tsp-irq {
 				nexell,pins = "gpioa-12";
 				nexell,pin-function = <0>;
-				nexell,pin-pull = <2>;
+				nexell,pin-pull = <1>;
 				nexell,pin-strength = <0>;
 			};
 
 			tsp_reset: tsp-reset {
 				nexell,pins = "gpioa-13";
 				nexell,pin-function = <0>;
-				nexell,pin-pull = <2>;
-				nexell,pin-strength = <0>;
-			};
-			
-			tap_outs: tap-outs {
-				nexell,pins = "gpioa-9", "gpioa-10", "gpioa-11";
-				nexell,pin-function = <0>;
-				nexell,pin-pull = <2>;
+				nexell,pin-pull = <1>;
 				nexell,pin-strength = <0>;
 			};
 		};
@@ -259,23 +252,12 @@
 			status = "okay";
 		};
 
-		i2s_1:i2s@c0056000 {
-                        #sound-dai-cells = <1>;
-                        master-mode = <1>;
-                        mclk-in = <0>;
-                        trans-mode = <0>;
-                        frame-bit = <32>;
-                        sample-rate = <48000>;
-                        pre-supply-mclk = <1>;
-                        status = "okay";
-                };
-
 		vip_0:vip@c0063000 {
 			status = "okay";
 		};
 
 		i2c_0:i2c@c00a4000 {
-			samsung,i2c-max-bus-freq = <100000>;
+			samsung,i2c-max-bus-freq = <400000>;
 			status = "okay";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -290,19 +272,6 @@
                 		init_time,mday = <29>;
                 		init_time,wday = <5>;
         		};
-
-			sgtl5000_au2:codec1@0a {
-                		compatible = "fsl,sgtl5000";
-				#sound-dai-cells = <0>;
-                		reg = <0x0a>;
-                		clocks = <&i2s1>;
-                		micbias-resistor-k-ohms = <2>;
-                		micbias-voltage-m-volts = <2250>;
-                		VDDA-supply = <&VCC_LDO2>;
-                		VDDIO-supply = <&VCC_DCDC2>;
-				VDDD-supply = <&dummyreg_au2>;
-        		};
-			
 		};
 
 		mipi_csi:mipi_csi@c00d0000 {
@@ -345,7 +314,7 @@
 
 	backlight: pwm-backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm 0 35000 0>;
+		pwms = <&pwm 0 20000 0>;
 		pwm-names = "pwm-backlight";
 		brightness-levels = < 0  1  2  3  4  5  6  7  8  9
 				     10 11 12 13 14 15 16 17 18 19
@@ -403,10 +372,20 @@
 		#size-cells = <0>;
 	};
 
-	sound@0 {
+	sound {
 		compatible = "simple-audio-card";
-		simple-audio-card,name = "AU1";
+		simple-audio-card,name = "Artik710 raptor Audio";
 		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,widgets =
+		    "Headphone", "Out Jack",
+		    "Microphone", "In Jack";
+		simple-audio-card,routing =
+		    "Out Jack", "HPOL",
+		    "Out Jack", "HPOR",
+		    "IN2P", "In Jack",
+		    "IN2P", "In Jack";
+		status = "okay";
+
 		simple-audio-card,dai-link@0 {
 		    format = "i2s";
 		    cpu {
@@ -414,24 +393,17 @@
 		    };
 
 		    codec {
-			sound-dai = <&sgtl5000_au1>;
+			sound-dai = <&alc5658>;
 		    };
 		};
 
-	};
-
-	sound@1 {
-                compatible = "simple-audio-card";
-                simple-audio-card,name = "AU2";
-                simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,dai-link@0 {
-		    format = "i2s";
+		simple-audio-card,dai-link@1 {
 		    cpu {
-			sound-dai = <&i2s_1 0>;
+			sound-dai = <&spdif_tx 0>;
 		    };
 
 		    codec {
-			sound-dai = <&sgtl5000_au2>;
+			sound-dai = <&spdif_out>;
 		    };
 		};
 	};
@@ -701,8 +673,7 @@
 			ldo9	{ PMIC_PDATA_INIT(13,
 				"nxe2000_ldo9",
 				1000000, 3500000,
-				1200000, 1, 1, 0x2)
-				regulator-always-on;
+				1800000, 0, 1, 0x2)
 				regulator-boot-on;};
 		VCC_LDO9:
 			ldo10	{ PMIC_PDATA_INIT(14,
@@ -725,28 +696,8 @@
 				1000000, 1, 1, 0xF)
 				regulator-always-on;
 				regulator-boot-on;};
-	
 	}; /* regulators */
 
-	         dummyreg_au1:fixedregulator0 {
-                        compatible = "regulator-fixed";
-                        regulator-name = "dummyreg_au1";
-                        regulator-min-microvolt = <1200000>;
-                        regulator-max-microvolt = <1200000>;
-                        regulator-always-on;
-                        regulator-boot-on;
-                        vin-supply = <&VCC_LDO8>;
-                };
-
-                dummyreg_au2:fixedregulator@0 {
-                        compatible = "regulator-fixed";
-                        regulator-name = "dummyreg_au2";
-                        regulator-min-microvolt = <1200000>;
-                        regulator-max-microvolt = <1200000>;
-                        regulator-always-on;
-                        regulator-boot-on;
-                        vin-supply = <&VCC_LDO8>;
-                };
 };
 
 &serial0 {
@@ -805,18 +756,6 @@
 		int-gpio = <&gpio_a 12 1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&tsp_irq &tsp_reset>;
-	};
-
-	sgtl5000_au1:codec0@0a {
-		compatible = "fsl,sgtl5000";
-		#sound-dai-cells = <0>;
-		reg = <0x0a>;
-		clocks = <&i2s0>;
-		micbias-resistor-k-ohms = <2>;
-		micbias-voltage-m-volts = <2250>;
-		VDDA-supply = <&VCC_LDO0>;
-		VDDIO-supply = <&VCC_DCDC2>;
-		VDDD-supply = <&dummyreg_au1>;
 	};
 };
 

@@ -15,6 +15,7 @@ snd-soc-core-objs += soc-ac97.o
 endif
 
 obj-$(CONFIG_SND_SOC)	+= snd-soc-core.o
+obj-$(CONFIG_SND_SOC)	+= codecs/
 obj-$(CONFIG_SND_SOC)	+= generic/
 obj-$(CONFIG_SND_SOC)	+= adi/
 obj-$(CONFIG_SND_SOC)	+= atmel/
@@ -47,4 +48,3 @@ obj-$(CONFIG_SND_SOC)	+= ux500/
 obj-$(CONFIG_SND_SOC)	+= xtensa/
 obj-$(CONFIG_SND_SOC)	+= zte/
 obj-$(CONFIG_SND_SOC)	+= nexell/
-obj-$(CONFIG_SND_SOC)	+= codecs/
