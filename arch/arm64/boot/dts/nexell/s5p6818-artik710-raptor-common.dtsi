@@ -151,12 +151,12 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&gmac_pins>;
 
-			status = "okay";
+			status = "disabled";
 			#address-cells = <0x1>;
 			#size-cells = <0x0>;
 
 			snps,phy-addr = <3>;
-			//snps,reset-gpio = <&gpio_a 12 0>;
+			snps,reset-gpio = <&gpio_a 12 0>;
 			snps,reset-active-low;
 			snps,reset-delays-us = <0 10000 30000>;
 
@@ -283,9 +283,9 @@
 
 		clipper_0:clipper0@c0063000 {
 			interface_type = <NX_CAPTURE_INTERFACE_MIPI_CSI>;
-			//gpios = <&gpio_a 17 0 &gpio_a 3 0 &gpio_a 6 0>;
+			gpios = <&gpio_a 17 0 &gpio_a 3 0 &gpio_a 6 0>;
 			data_order = <NX_VIN_Y0CBY1CR>;
-			status = "okay";
+			status = "disable";
 			sensor {
 				type = <NX_CAPTURE_SENSOR_I2C>;
 				i2c_name = "S5K4ECGA";
@@ -352,14 +352,13 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		status = "disabled";
-		
 		alc5658: alc5658@1a {
 			#sound-dai-cells = <0>;
 			compatible = "realtek,rt5658";
 			reg = <0x1a>;
 		};
 
+		status = "disabled";
 	};
 
 	i2c_gpio7:i2c@7 {
@@ -499,13 +498,13 @@
 
 	i2c_gpio8: i2c@8 {
 		compatible = "i2c-gpio";
-		//gpios = <&gpio_a 13 0	/* sda */
-		//	&gpio_a 9 0		/* scl */
-		//	>;
+		gpios = <&gpio_a 13 0	/* sda */
+			&gpio_a 9 0		/* scl */
+			>;
 		i2c-gpio,delay-us = <1>;	/* ~100kHz */
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "okay";
+		status = "disabled";
 
 		cw2015@62 {
 			compatible = "cw201x";
@@ -786,7 +785,7 @@
 &dp_drm_mipi {
 	hs_bitrate = <960>;
 	lp_bitrate = <100>;
-	status = "okay";
+	status = "disabled";
 
 	panel@0 {
 		compatible = "samsung,s6e8fa0";
@@ -817,7 +816,7 @@
 		clk_div_lv0 = <6>;
 		clk_src_lv1 = <7>;
 		clk_div_lv1 = <1>;
-		out_format = <1>;
+		out_format = <3>;
 		vs_start_offset = <480>;
 		ev_start_offset = <480>;
 		vs_end_offset = <0>;
@@ -828,7 +827,7 @@
 &dp_drm_hdmi {
 	ddc-i2c-bus = <&i2c_gpio7>;
 	enable-gpios = <&gpio_a 21 0>;
-	status = "okay";
+	status = "disabled";
 	q_range = <0>;
 };
 
@@ -836,32 +835,13 @@
 	status = "okay";
 
 	remote-endpoint = <&lvds_panel>;
-	panel-mpu = <0>;
-
-	format = <1>;
-	width-mm = <164>;
-	height-mm = <65>;
-
-	display-timing {
-	        clock-frequency = <30000000>;
-        	hactive = <800>;
-	        hsync-len = <48>;
-        	hback-porch = <88>;
-	        hfront-porch = <40>;
-        	hsync-active = <1>;
-	        vactive = <480>;
-	        vsync-len = <3>;
-        	vback-porch = <32>;
-	        vfront-porch = <13>;
-	        vsync-active = <1>;
-	};
 
 	dp_control {
 		clk_src_lv0 = <3>;
 		clk_div_lv0 = <16>;
 		clk_src_lv1 = <7>;
 		clk_div_lv1 = <1>;
-		out_format = <3>;
+		out_format = <1>;
 	};
 };
 

@@ -370,7 +370,7 @@ static void panel_simple_shutdown(struct device *dev)
 }
 
 static const struct display_timing nhd_50_800480tf_atxl_timing = {
-        .pixelclock = { 30000000, 30000000, 50000000 },
+        .pixelclock = { 20000000, 30000000, 50000000 },
         .hactive = { 800, 800, 800 },
         .hfront_porch = { 40, 40, 40 },
         .hback_porch = { 88, 88, 88 },
@@ -379,7 +379,7 @@ static const struct display_timing nhd_50_800480tf_atxl_timing = {
         .vfront_porch = { 13, 13, 13 },
         .vback_porch = { 32, 32, 32 },
         .vsync_len = { 3, 3, 3 },
-        //.flags = DISPLAY_FLAGS_PIXDATA_NEGEDGE | DISPLAY_FLAGS_DE_HIGH,
+        .flags = DISPLAY_FLAGS_PIXDATA_NEGEDGE | DISPLAY_FLAGS_DE_HIGH,
 };
 
 static const struct drm_display_mode nhd_50_800480tf_atxl_mode = {
@@ -399,14 +399,14 @@ static const struct drm_display_mode nhd_50_800480tf_atxl_mode = {
 static const struct panel_desc nhd_50_800480tf_atxl = {
         .timings = &nhd_50_800480tf_atxl_timing,
         .num_timings = 1,
-        //.modes = &nhd_50_800480tf_atxl_mode,
+        //.modes = & nhd_50_800480tf_atxl_mode,
 	//.num_modes = 1,
         .bpc = 8,
         .size = {
                 .width = 108,
                 .height = 65,
         },
-        .bus_format = MEDIA_BUS_FMT_BGR888_1X24,
+        .bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 };
 
 static const struct drm_display_mode ampire_am800480r3tmqwa1h_mode = {
