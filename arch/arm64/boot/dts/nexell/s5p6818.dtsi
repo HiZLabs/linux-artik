@@ -238,6 +238,16 @@
 			clocks =  <&timer0>, <&timer1>, <&pclk>;
 			clock-names = "timer0", "timer1", "pclk";
 		};
+		
+		timer2@c0017000 {
+			compatible = "nexell,s5p6818-timer";
+			reg = <PHYS_BASE_TIMER 0x1000>;
+			interrupts = <0 IRQ_TIMER3 0>;
+			clksource = <2>;
+			clkevent = <3>;
+			clocks =  <&timer2>, <&timer3>, <&pclk>;
+			clock-names = "timer2", "timer3", "pclk";
+		};
 
 		tieoff@c0011000 {
 			compatible = "nexell,tieoff";

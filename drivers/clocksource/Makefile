@@ -47,7 +47,7 @@ obj-$(CONFIG_MTK_TIMER)		+= mtk_timer.o
 obj-$(CONFIG_CLKSRC_PISTACHIO)	+= time-pistachio.o
 obj-$(CONFIG_CLKSRC_TI_32K)	+= timer-ti-32k.o
 obj-$(CONFIG_CLKSRC_NEXELL_TIMER)  += s5pxx18_timer.o
-
+CFLAGS_s5pxx18_timer.o := -DDEBUG
 obj-$(CONFIG_ARM_ARCH_TIMER)		+= arm_arch_timer.o
 obj-$(CONFIG_ARM_GLOBAL_TIMER)		+= arm_global_timer.o
 obj-$(CONFIG_ARMV7M_SYSTICK)		+= armv7m_systick.o

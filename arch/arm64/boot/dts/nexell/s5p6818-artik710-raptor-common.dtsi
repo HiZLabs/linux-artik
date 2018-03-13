@@ -48,7 +48,7 @@
 		i2c10 = &i2c_gpio10;
 		i2c11 = &i2c_gpio11;
 	};
-
+	
 	nx-v4l2 {
 		status = "okay";
 	};
@@ -77,6 +77,12 @@
 			timer1:timer@c00bb000 {
 			      clk-input = <I_PLL2>;
 			};
+			timer2:timer@c00bc000 {
+			      clk-input = <I_PLL2>;
+			};
+			timer3:timer@c00bd000 {
+			      clk-input = <I_PLL2>;
+			};
 			pwm0:pwm0@c00ba000 {
 			      clk-input = <I_PLL2>;
 			};
@@ -85,6 +91,11 @@
 		timer@c0017000 {
 			clocks =  <&timer0>, <&timer1>;
 			clock-names = "timer0", "timer1";
+		};
+		
+		timer2@c0017000 {
+			clocks =  <&timer2>, <&timer3>;
+			clock-names = "timer2", "timer3";
 		};
 
 		pwm:pwm@c0018000 {

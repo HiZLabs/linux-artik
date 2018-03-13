@@ -31,6 +31,7 @@
 #include <linux/of_platform.h>
 #include <linux/clk-provider.h>
 #include <linux/reset.h>
+#include <linux/list.h>
 
 #define CLK_SOURCE_HZ (10 * 1000000) /* or 1MHZ */
 #define CLK_EVENT_HZ (10 * 1000000)  /* or 1MHZ */
@@ -55,6 +56,17 @@
 #define TINT_CSTAT_MASK (0x1F)
 #define TIMER_TCNT_OFFS (0xC)
 
+static void timer_source_suspend(struct clocksource *cs);
+static void timer_source_resume(struct clocksource *cs);
+static int timer_event_shutdown(struct clock_event_device *evt);
+static int timer_event_set_periodic(struct clock_event_device *evt);
+static int timer_event_set_oneshot(struct clock_event_device *evt);
+static int timer_event_shutdown(struct clock_event_device *evt);
+static int timer_event_set_next(unsigned long delta,	struct clock_event_device *evt);
+static void timer_event_resume(struct clock_event_device *evt);
+static cycle_t timer_source_read(struct clocksource *cs);
+static irqreturn_t timer_event_handler(int irq, void *dev_id);
+
 /* timer data structs */
 struct timer_info {
 	int channel;
@@ -72,12 +84,86 @@ struct timer_info {
 struct timer_of_dev {
 	void __iomem *base;
 	struct clk *pclk;
+	char source_name[20];
+	char event_name[20];
+	char irq_name [25];
 	struct timer_info timer_source;
 	struct timer_info timer_event;
+	struct clocksource timer_clocksource;
+	struct clock_event_device timer_clock_event;
+	struct irqaction timer_event_irqaction;
+	struct list_head list;
 };
 
-static struct timer_of_dev *timer_dev;
-#define get_timer_dev() ((struct timer_of_dev *)timer_dev)
+static LIST_HEAD(devs);
+static int num_instances = 0;
+
+static struct timer_of_dev* get_dev_for_clocksource(const struct clocksource *cs) {
+	struct timer_of_dev *dev;
+
+	list_for_each_entry(dev, &devs, list) {
+		if(&dev->timer_clocksource == cs)
+			return dev;
+	}
+
+	return NULL;
+}
+
+static struct timer_of_dev *get_dev_for_clock_event_device(const struct clock_event_device *ce) {
+	struct timer_of_dev *dev;
+
+	list_for_each_entry(dev, &devs, list) {
+		if(&dev->timer_clock_event == ce)
+			return dev;
+	}
+
+	return NULL;
+}
+
+
+
+static struct timer_of_dev *create_timer_dev(void) {
+	struct timer_of_dev *dev;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL | __GFP_NOFAIL);
+
+	sprintf(dev->source_name, "source timer %d", num_instances);
+	sprintf(dev->event_name, "event timer %d", num_instances);
+	sprintf(dev->irq_name, "Event Timer %d IRQ", num_instances);
+	num_instances++;
+
+	dev->timer_clocksource.name = dev->source_name;
+	dev->timer_clocksource.rating = 300;
+	dev->timer_clocksource.read = timer_source_read;
+	dev->timer_clocksource.mask = CLOCKSOURCE_MASK(32);
+	dev->timer_clocksource.shift = 20;
+	dev->timer_clocksource.flags = CLOCK_SOURCE_IS_CONTINUOUS;
+	dev->timer_clocksource.suspend = timer_source_suspend;
+	dev->timer_clocksource.resume = timer_source_resume;
+	dev->timer_clock_event.name = dev->event_name;
+	dev->timer_clock_event.features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
+	dev->timer_clock_event.set_state_shutdown = timer_event_shutdown;
+	dev->timer_clock_event.set_state_periodic = timer_event_set_periodic;
+	dev->timer_clock_event.set_state_oneshot = timer_event_set_oneshot;
+	dev->timer_clock_event.tick_resume = timer_event_shutdown;
+	dev->timer_clock_event.set_next_event = timer_event_set_next;
+	dev->timer_clock_event.resume = timer_event_resume;
+	dev->timer_clock_event.rating = 150; /* Lower than dummy timer (for 6818) */
+	dev->timer_event_irqaction.name = dev->irq_name;
+	dev->timer_event_irqaction.flags = IRQF_TIMER; /* removed IRQF_DISABLED kernel 4.1.15 */
+	dev->timer_event_irqaction.handler = timer_event_handler;
+	dev->timer_event_irqaction.dev_id = dev;
+	INIT_LIST_HEAD(&dev->list);
+
+	list_add(&dev->list, &devs);
+
+	return dev;
+}
+
+static struct timer_of_dev *get_first_timer_dev(void) {
+	return list_first_entry_or_null(&devs, struct timer_of_dev, list);
+}
+
 
 static inline void timer_periph_reset(int id) { return; }
 
@@ -127,9 +213,8 @@ static inline unsigned int timer_read(void __iomem *base, int ch)
 	return readl(base + REG_TCNT0 + (TIMER_TCNT_OFFS * ch));
 }
 
-static inline u32 timer_read_count(void)
+static inline u32 timer_read_count_dev(struct timer_of_dev *dev)
 {
-	struct timer_of_dev *dev = get_timer_dev();
 	struct timer_info *info;
 
 	if (NULL == dev || NULL == dev->base)
@@ -141,11 +226,14 @@ static inline u32 timer_read_count(void)
 	return (cycle_t)info->rcount;
 }
 
+static inline u32 timer_read_count(void) {
+	return timer_read_count_dev(get_first_timer_dev());
+}
+
 /*
  * Timer clock source
  */
-static void timer_clock_select(struct timer_of_dev *dev,
-			       struct timer_info *info)
+static void timer_clock_select(struct timer_of_dev *dev, struct timer_info *info)
 {
 	unsigned long rate, tout = 0;
 	unsigned long mout, thz, delt = (-1UL);
@@ -197,7 +285,7 @@ static void timer_clock_select(struct timer_of_dev *dev,
 
 static void timer_source_suspend(struct clocksource *cs)
 {
-	struct timer_of_dev *dev = get_timer_dev();
+	struct timer_of_dev *dev = get_dev_for_clocksource(cs);
 	struct timer_info *info = &dev->timer_source;
 	void __iomem *base = dev->base;
 	int ch = info->channel;
@@ -212,7 +300,7 @@ static void timer_source_suspend(struct clocksource *cs)
 
 static void timer_source_resume(struct clocksource *cs)
 {
-	struct timer_of_dev *dev = get_timer_dev();
+	struct timer_of_dev *dev = get_dev_for_clocksource(cs);
 	struct timer_info *info = &dev->timer_source;
 	void __iomem *base = dev->base;
 	int ch = info->channel;
@@ -239,25 +327,13 @@ static void timer_source_resume(struct clocksource *cs)
 
 static cycle_t timer_source_read(struct clocksource *cs)
 {
-	return (cycle_t)timer_read_count();
+	return (cycle_t)timer_read_count_dev(get_first_timer_dev());
 }
 
-static struct clocksource timer_clocksource = {
-	.name = "source timer",
-	.rating = 300,
-	.read = timer_source_read,
-	.mask = CLOCKSOURCE_MASK(32),
-	.shift = 20,
-	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
-	.suspend = timer_source_suspend,
-	.resume = timer_source_resume,
-};
-
-static int __init timer_source_of_init(struct device_node *node)
+static int __init timer_source_of_init(struct device_node *node, struct timer_of_dev *dev)
 {
-	struct timer_of_dev *dev = get_timer_dev();
 	struct timer_info *info = &dev->timer_source;
-	struct clocksource *cs = &timer_clocksource;
+	struct clocksource *cs = &dev->timer_clocksource;
 	void __iomem *base = dev->base;
 	int ch = info->channel;
 
@@ -267,6 +343,9 @@ static int __init timer_source_of_init(struct device_node *node)
 
 	/* reset tcount */
 	info->tcount = 0xFFFFFFFF;
+
+	if(dev != list_first_entry(&devs, struct timer_of_dev, list))
+		cs->rating = 50;
 
 	clocksource_register_hz(cs, info->rate);
 
@@ -285,7 +364,7 @@ static int __init timer_source_of_init(struct device_node *node)
  */
 static void timer_event_resume(struct clock_event_device *evt)
 {
-	struct timer_of_dev *dev = get_timer_dev();
+	struct timer_of_dev *dev = get_dev_for_clock_event_device(evt);
 	struct timer_info *info = &dev->timer_event;
 	void __iomem *base = dev->base;
 	int ch = info->channel;
@@ -299,7 +378,7 @@ static void timer_event_resume(struct clock_event_device *evt)
 
 static int timer_event_shutdown(struct clock_event_device *evt)
 {
-	struct timer_of_dev *dev = get_timer_dev();
+	struct timer_of_dev *dev = get_dev_for_clock_event_device(evt);
 	struct timer_info *info = &dev->timer_event;
 	void __iomem *base = dev->base;
 	int ch = info->channel;
@@ -316,7 +395,7 @@ static int timer_event_set_oneshot(struct clock_event_device *evt)
 
 static int timer_event_set_periodic(struct clock_event_device *evt)
 {
-	struct timer_of_dev *dev = get_timer_dev();
+	struct timer_of_dev *dev = get_dev_for_clock_event_device(evt);
 	struct timer_info *info = &dev->timer_event;
 	void __iomem *base = dev->base;
 	int ch = info->channel;
@@ -329,10 +408,9 @@ static int timer_event_set_periodic(struct clock_event_device *evt)
 	return 0;
 }
 
-static int timer_event_set_next(unsigned long delta,
-				struct clock_event_device *evt)
+static int timer_event_set_next(unsigned long delta, struct clock_event_device *evt)
 {
-	struct timer_of_dev *dev = get_timer_dev();
+	struct timer_of_dev *dev = get_dev_for_clock_event_device(evt);
 	struct timer_info *info = &dev->timer_event;
 	void __iomem *base = dev->base;
 	int ch = info->channel;
@@ -348,22 +426,10 @@ static int timer_event_set_next(unsigned long delta,
 	return 0;
 }
 
-static struct clock_event_device timer_clock_event = {
-	.name = "event timer",
-	.features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.set_state_shutdown = timer_event_shutdown,
-	.set_state_periodic = timer_event_set_periodic,
-	.set_state_oneshot = timer_event_set_oneshot,
-	.tick_resume = timer_event_shutdown,
-	.set_next_event = timer_event_set_next,
-	.resume = timer_event_resume,
-	.rating = 50, /* Lower than dummy timer (for 6818) */
-};
-
 static irqreturn_t timer_event_handler(int irq, void *dev_id)
 {
-	struct clock_event_device *evt = &timer_clock_event;
-	struct timer_of_dev *dev = get_timer_dev();
+	struct timer_of_dev *dev = (struct timer_of_dev *)dev_id;
+	struct clock_event_device *evt = &dev->timer_clock_event;
 	struct timer_info *info = &dev->timer_event;
 	void __iomem *base = dev->base;
 	int ch = info->channel;
@@ -379,27 +445,20 @@ static irqreturn_t timer_event_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction timer_event_irqaction = {
-	.name = "Event Timer IRQ",
-	.flags = IRQF_TIMER, /* removed IRQF_DISABLED kernel 4.1.15 */
-	.handler = timer_event_handler,
-};
-
 #ifdef CONFIG_ARM64
 /*
  * to __delay , refer to arch_timer.h and  arm64 lib delay.c
  */
-u64 arch_counter_get_cntvct(void) { return timer_read_count(); }
+u64 arch_counter_get_cntvct(void) { return timer_read_count_dev(get_first_timer_dev()); }
 EXPORT_SYMBOL(arch_counter_get_cntvct);
 
 int arch_timer_arch_init(void) { return 0; }
 #endif
 
-static int __init timer_event_of_init(struct device_node *node)
+static int __init timer_event_of_init(struct device_node *node, struct timer_of_dev *dev)
 {
-	struct timer_of_dev *dev = get_timer_dev();
 	struct timer_info *info = &dev->timer_event;
-	struct clock_event_device *evt = &timer_clock_event;
+	struct clock_event_device *evt = &dev->timer_clock_event;
 	void __iomem *base = dev->base;
 	int ch = info->channel;
 
@@ -409,12 +468,15 @@ static int __init timer_event_of_init(struct device_node *node)
 	timer_stop(base, ch, 1);
 	timer_clock(base, ch, info->tmux, info->prescale);
 
-	setup_irq(info->interrupt, &timer_event_irqaction);
+	setup_irq(info->interrupt, &dev->timer_event_irqaction);
 	clockevents_calc_mult_shift(evt, info->rate, 5);
 	evt->max_delta_ns = clockevent_delta2ns(0xffffffff, evt);
 	evt->min_delta_ns = clockevent_delta2ns(0xf, evt);
 	evt->cpumask = cpumask_of(0);
 	evt->irq = info->interrupt;
+
+	if(dev != list_first_entry(&devs, struct timer_of_dev, list))
+		evt->rating = 50;
 
 	clockevents_register_device(evt);
 
@@ -477,17 +539,14 @@ static struct delay_timer nxp_delay_timer = {
 
 static void __init timer_of_init_dt(struct device_node *node)
 {
-	struct timer_of_dev *dev = NULL;
-
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-
-	timer_dev = dev;
+	struct timer_of_dev *dev;
+	dev = create_timer_dev();
 
 	if (timer_get_device_data(node, dev))
 		panic("unable to map timer cpu !!!\n");
 
-	timer_source_of_init(node);
-	timer_event_of_init(node);
+	timer_source_of_init(node, dev);
+	timer_event_of_init(node, dev);
 
 #ifdef CONFIG_ARM
 	register_current_timer_delay(&nxp_delay_timer);
