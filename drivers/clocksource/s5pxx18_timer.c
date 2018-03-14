@@ -471,7 +471,7 @@ static int __init timer_event_of_init(struct device_node *node, struct timer_of_
 	setup_irq(info->interrupt, &dev->timer_event_irqaction);
 	clockevents_calc_mult_shift(evt, info->rate, 5);
 	evt->max_delta_ns = clockevent_delta2ns(0xffffffff, evt);
-	evt->min_delta_ns = clockevent_delta2ns(0xf, evt);
+	evt->min_delta_ns = clockevent_delta2ns(0x7, evt);
 	evt->cpumask = cpumask_of(0);
 	evt->irq = info->interrupt;
 
