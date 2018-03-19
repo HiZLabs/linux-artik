@@ -75,12 +75,6 @@ extern void smp_send_reschedule(int cpu);
 
 
 /*
- * sends a mux timer event to another CPU:
- */
-extern void smp_send_mux_timer(int cpu);
-
-
-/*
  * Prepare machine for booting other CPUs.
  */
 extern void smp_prepare_cpus(unsigned int max_cpus);
